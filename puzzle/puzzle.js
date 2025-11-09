@@ -95,9 +95,13 @@ function attachGlobalEvents() {
     if (!pieceId) return;
     const piece = document.querySelector(`[data-piece-id="${pieceId}"]`);
     if (!(piece instanceof HTMLElement)) return;
-    movePieceToBank(piece);
+    const movedFromZone = movePieceToBank(piece);
     piece.classList.remove("is-dragging");
     clearSelection();
+    if (movedFromZone) {
+      movesCount += 1;
+      updateMovesDisplay();
+    }
   });
 
   pieceBank.addEventListener("click", handlePieceBankClick);
@@ -182,11 +186,11 @@ function populatePieceBank({ enableDrag, scramble = false }) {
 
     piece.addEventListener("dragstart", handleDragStart);
     piece.addEventListener("dragend", handleDragEnd);
-    piece.addEventListener("click", () => handlePieceClick(piece));
+    piece.addEventListener("click", (event) => handlePieceClick(piece, event));
     piece.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        handlePieceClick(piece);
+        handlePieceClick(piece, event);
       }
     });
 
@@ -273,9 +277,26 @@ function handleZoneClick(event) {
   }
 }
 
-function handlePieceClick(piece) {
+function handlePieceClick(piece, event) {
   if (!gameActive || puzzleSolved) return;
   if (!(piece instanceof HTMLElement)) return;
+  if (event instanceof Event) {
+    event.stopPropagation();
+  }
+
+  const isMouseDoubleClick =
+    typeof MouseEvent !== "undefined" && event instanceof MouseEvent && event.detail > 1;
+
+  if (isMouseDoubleClick) {
+    const returnedToBank = movePieceToBank(piece, { preserveSelection: true });
+    if (returnedToBank) {
+      movesCount += 1;
+      updateMovesDisplay();
+    }
+    setStatus("Piece returned to bank. Tap a cell to place it again.");
+    return;
+  }
+
   selectPiece(piece);
 }
 
@@ -293,6 +314,15 @@ function selectPiece(piece) {
   selectedPieceId = pieceId;
   piece.classList.add("is-selected");
   activePieceId = pieceId;
+  piece.focus?.({ preventScroll: true });
+
+  const parentZone =
+    piece.parentElement instanceof HTMLElement && piece.parentElement.classList.contains("drop-zone");
+  if (parentZone) {
+    setStatus("Piece selected. Tap another cell or the bank to reposition.");
+  } else {
+    setStatus("Piece selected. Tap a board cell to place it or tap the bank background to cancel.");
+  }
 }
 
 function clearSelection() {
@@ -316,6 +346,10 @@ function placePieceInZone(piece, zone) {
   const expectedCol = piece.dataset.col ?? "";
 
   const previousParent = piece.parentElement;
+  const originZone =
+    previousParent instanceof HTMLElement && previousParent.classList.contains("drop-zone")
+      ? previousParent
+      : null;
   const occupiesSameZone = previousParent === zone && zone.firstElementChild === piece;
 
   if (occupiesSameZone) {
@@ -324,27 +358,29 @@ function placePieceInZone(piece, zone) {
     return false;
   }
 
-  const occupyingPiece = zone.firstElementChild;
-  if (occupyingPiece && occupyingPiece !== piece && occupyingPiece instanceof HTMLElement) {
-    movePieceToBank(occupyingPiece);
+  const occupyingPiece =
+    zone.firstElementChild instanceof HTMLElement && zone.firstElementChild !== piece
+      ? zone.firstElementChild
+      : null;
+
+  if (occupyingPiece) {
+    if (originZone && originZone !== zone) {
+      originZone.appendChild(occupyingPiece);
+      syncZoneState(originZone);
+    } else {
+      movePieceToBank(occupyingPiece);
+    }
   }
 
   const movedFromDifferentParent = previousParent !== zone;
 
   zone.appendChild(piece);
-  zone.classList.add("has-piece");
-  zone.classList.toggle("is-correct", targetRow === expectedRow && targetCol === expectedCol);
+  syncZoneState(zone);
 
-  if (
-    previousParent instanceof HTMLElement &&
-    previousParent.classList.contains("drop-zone") &&
-    previousParent !== zone
-  ) {
-    previousParent.classList.remove("has-piece", "is-correct");
+  if (originZone && originZone !== zone) {
+    syncZoneState(originZone);
   }
 
-  piece.dataset.placedRow = targetRow;
-  piece.dataset.placedCol = targetCol;
   piece.classList.remove("is-selected");
 
   if (!isTimerRunning) {
@@ -364,18 +400,20 @@ function placePieceInZone(piece, zone) {
 }
 
 function movePieceToBank(piece, { preserveSelection = false } = {}) {
-  if (!(piece instanceof HTMLElement)) return;
+  if (!(piece instanceof HTMLElement)) return false;
   const pieceId = piece.dataset.pieceId ?? null;
-  const originZone = piece.parentElement?.classList?.contains("drop-zone")
-    ? piece.parentElement
-    : null;
+  const originZone =
+    piece.parentElement instanceof HTMLElement && piece.parentElement.classList.contains("drop-zone")
+      ? piece.parentElement
+      : null;
+  const movedFromZone = Boolean(originZone);
 
   pieceBank.appendChild(piece);
   piece.removeAttribute("data-placed-row");
   piece.removeAttribute("data-placed-col");
 
-  if (originZone instanceof HTMLElement) {
-    originZone.classList.remove("has-piece", "is-correct", "is-hovered");
+  if (originZone) {
+    syncZoneState(originZone);
   }
 
   if (preserveSelection && pieceId) {
@@ -383,17 +421,37 @@ function movePieceToBank(piece, { preserveSelection = false } = {}) {
     selectedPieceId = pieceId;
     activePieceId = pieceId;
     piece.classList.add("is-selected");
+  } else if (pieceId && selectedPieceId === pieceId) {
+    clearSelection();
   } else {
-    if (pieceId && selectedPieceId === pieceId) {
-      selectedPieceId = null;
-    }
-    if (pieceId && activePieceId === pieceId) {
-      activePieceId = null;
-    }
     piece.classList.remove("is-selected");
   }
 
+  piece.draggable = gameActive;
+  piece.tabIndex = gameActive ? 0 : -1;
+
   updateBankState();
+  return movedFromZone;
+}
+
+function syncZoneState(zone) {
+  if (!(zone instanceof HTMLElement)) return;
+  const occupant = zone.querySelector(".puzzle-piece");
+  if (occupant instanceof HTMLElement) {
+    const zoneRow = zone.dataset.row ?? "";
+    const zoneCol = zone.dataset.col ?? "";
+    zone.classList.add("has-piece");
+    zone.classList.toggle(
+      "is-correct",
+      zoneRow === (occupant.dataset.row ?? "") && zoneCol === (occupant.dataset.col ?? "")
+    );
+    occupant.dataset.placedRow = zoneRow;
+    occupant.dataset.placedCol = zoneCol;
+    occupant.draggable = gameActive;
+    occupant.tabIndex = gameActive ? 0 : -1;
+  } else {
+    zone.classList.remove("has-piece", "is-correct", "is-hovered");
+  }
 }
 
 function handlePieceBankClick(event) {
@@ -408,16 +466,14 @@ function handlePieceBankClick(event) {
   const piece = document.querySelector(`[data-piece-id="${selectedPieceId}"]`);
   if (!(piece instanceof HTMLElement)) return;
 
-  const cameFromZone =
-    piece.parentElement instanceof HTMLElement &&
-    piece.parentElement.classList.contains("drop-zone");
+  const movedFromZone = movePieceToBank(piece, { preserveSelection: true });
 
-  movePieceToBank(piece, { preserveSelection: true });
-
-  if (cameFromZone) {
+  if (movedFromZone) {
     movesCount += 1;
     updateMovesDisplay();
   }
+
+  setStatus("Piece ready in the bank. Tap a board cell to reposition it.");
 }
 
 function updateBankState() {
