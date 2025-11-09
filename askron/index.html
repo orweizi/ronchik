@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>שאל את רון · Ask Ron</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a
+      class="back-button"
+      href="../index.html"
+      aria-label="חזרה ללוח הבקרה"
+    >
+      <span class="back-icon" aria-hidden="true">←</span>
+      <span class="back-label">חזרה ללוח הבקרה</span>
+    </a>
+
+    <div class="smoke-layer layer-one" aria-hidden="true"></div>
+    <div class="smoke-layer layer-two" aria-hidden="true"></div>
+    <div class="smoke-layer layer-three" aria-hidden="true"></div>
+
+    <main class="oracle-shell">
+      <section class="oracle-avatar">
+        <div class="aura aura-back" aria-hidden="true"></div>
+        <div class="avatar-frame">
+          <img
+            id="ronAvatar"
+            src="./img/idle.gif"
+            alt="רון מחכה לשאלה"
+            data-idle="./img/idle.gif"
+            data-active="./img/animation.gif"
+          />
+        </div>
+        <div class="aura aura-front" aria-hidden="true"></div>
+      </section>
+
+      <section class="oracle-console">
+        <header class="console-header">
+          <p class="console-meta">רון פולישצ'וק · מנטור לנצח ואמן פיתוי</p>
+          <h1 class="console-title">שאל את רון</h1>
+          <p class="console-subtitle">
+            לחששו משהו. רון יחזיר תשובה.
+          </p>
+        </header>
+
+        <form id="askForm" class="oracle-form" novalidate>
+          <label class="form-label" for="promptInput">
+            מה אתה חייב לדעת עכשיו?
+          </label>
+          <div class="form-field">
+            <textarea
+              id="promptInput"
+              name="prompt"
+              placeholder="רון, למה הקפה מרגיש כמו חרטה?"
+              rows="3"
+              required
+            ></textarea>
+            <button type="submit" class="ask-button" data-loading-text="מעלה עשן...">
+              שאל
+            </button>
+          </div>
+          <p class="form-hint">
+            רמז: אל תקוו להבנה. הנביא פה בעיקר בשביל האווירה.
+          </p>
+        </form>
+
+        <section class="response-stage" aria-live="polite">
+          <div class="response-glow" aria-hidden="true"></div>
+          <div class="response-orb">
+            <p id="responseText">מחכה לשאלה.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
+
+

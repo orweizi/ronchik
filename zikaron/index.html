@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zika-Ron Memory Core</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Rajdhani:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./zikaron.css" />
+  </head>
+  <body>
+    <div class="crt-overlay" aria-hidden="true"></div>
+    <main class="layout">
+      <header class="layout__header">
+        <div class="header__meta">
+          <span class="header__badge" aria-hidden="true">ZR</span>
+          <div>
+            <p class="header__title">Zika-Ron Memory Core</p>
+            <p class="header__subtitle">
+              Match the shards, charge the birthday reactor.
+            </p>
+          </div>
+        </div>
+        <button class="header__back" type="button" onclick="window.location.href='../index.html'">
+          ⟵ Back to Command
+        </button>
+      </header>
+
+      <section class="status-panel" aria-label="Game status">
+        <div class="status-metric">
+          <span class="metric__label">Timer</span>
+          <span class="metric__value" data-timer>00:00</span>
+        </div>
+        <div class="status-metric">
+          <span class="metric__label">Moves</span>
+          <span class="metric__value" data-moves>0</span>
+        </div>
+        <div class="status-metric">
+          <span class="metric__label">Matches</span>
+          <span class="metric__value" data-matches>0</span>
+        </div>
+        <button class="status-panel__reset" type="button" data-reset>
+          Reset Grid
+        </button>
+      </section>
+
+      <section class="game-panel" aria-label="Memory grid">
+        <div class="game-grid" data-grid aria-live="polite"></div>
+      </section>
+
+      <section class="leaderboard" aria-labelledby="leaderboard-title">
+        <header class="leaderboard__header">
+          <h2 id="leaderboard-title">Leaderboard</h2>
+          <p>Fastest reactors log their runs here. Top 7 are displayed.</p>
+        </header>
+        <ol class="leaderboard__list" data-leaderboard></ol>
+      </section>
+    </main>
+
+    <template id="card-template">
+      <button class="card" type="button" aria-label="Hidden memory shard">
+        <span class="card__inner">
+          <span class="card__front" aria-hidden="true">?</span>
+          <img class="card__back" alt="Memory shard" loading="lazy" />
+        </span>
+      </button>
+    </template>
+
+    <dialog class="leaderboard-dialog" data-dialog>
+      <form method="dialog" class="dialog__form" data-dialog-form>
+        <h3>Reactor Charged!</h3>
+        <p class="dialog__summary">
+          <span data-final-moves>0</span> moves in
+          <span data-final-time>00:00</span>.
+        </p>
+        <label class="dialog__label">
+          Log your callsign
+          <input
+            class="dialog__input"
+            name="player-name"
+            type="text"
+            placeholder="Commander Ron"
+            maxlength="24"
+            required
+          />
+        </label>
+        <menu class="dialog__actions">
+          <button value="cancel" type="reset">Skip</button>
+          <button value="confirm" type="submit">Save Run</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script type="module" src="./zikaron.js"></script>
+  </body>
+</html>
+
+
