@@ -58,7 +58,7 @@ const games = [
     codename: "PUZZLE",
     title: "Puzzle Relay",
     description:
-      "Forty-piece Ronverse jigsaw. Assemble the intel image against the clock and claim leaderboard glory.",
+      "Twenty-piece Ronverse jigsaw. Assemble the intel image against the clock and claim leaderboard glory.",
     status: "live",
     tags: ["jigsaw", "speed run"],
     media: {

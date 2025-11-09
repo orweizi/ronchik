@@ -405,8 +405,8 @@ a {
 }
 
 .puzzle-board {
-  --rows: 5;
-  --cols: 8;
+  --rows: 4;
+  --cols: 5;
   width: min(92vw, 760px);
   display: grid;
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
@@ -462,6 +462,12 @@ a {
   border-radius: 0.25rem;
   cursor: grab;
   transition: transform 120ms ease;
+}
+
+.puzzle-piece.is-selected {
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 0 22px rgba(100, 250, 220, 0.4);
+  transform: scale(1.04);
+  z-index: 4;
 }
 
 .piece-bank .puzzle-piece {

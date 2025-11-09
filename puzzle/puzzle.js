@@ -1,5 +1,5 @@
-const ROWS = 5;
-const COLS = 8;
+const ROWS = 4;
+const COLS = 5;
 const TOTAL_PIECES = ROWS * COLS;
 const STORAGE_KEY = "ronverse-puzzle-leaderboard";
 const MAX_LEADERS = 5;
@@ -25,6 +25,7 @@ let timerIntervalId = null;
 let isTimerRunning = false;
 let gameActive = false;
 let puzzleSolved = false;
+let selectedPieceId = null;
 
 let leaderboard = loadLeaderboard();
 
@@ -93,19 +94,13 @@ function attachGlobalEvents() {
     const pieceId = event.dataTransfer.getData("text/plain") || activePieceId;
     if (!pieceId) return;
     const piece = document.querySelector(`[data-piece-id="${pieceId}"]`);
-    if (!piece) return;
-    const originZone = piece.parentElement?.classList.contains("drop-zone")
-      ? piece.parentElement
-      : null;
-    pieceBank.appendChild(piece);
-    piece.removeAttribute("data-placed-row");
-    piece.removeAttribute("data-placed-col");
+    if (!(piece instanceof HTMLElement)) return;
+    movePieceToBank(piece);
     piece.classList.remove("is-dragging");
-    if (originZone) {
-      originZone.classList.remove("has-piece", "is-correct", "is-hovered");
-    }
-    updateBankState();
+    clearSelection();
   });
+
+  pieceBank.addEventListener("click", handlePieceBankClick);
 }
 
 function prepareStandbyBoard() {
@@ -119,6 +114,7 @@ function prepareStandbyBoard() {
   resetButton.disabled = true;
   buildBoard();
   populatePieceBank({ enableDrag: false });
+  clearSelection();
   setStatus("Awaiting deployment. Hit “Start New Run” to scramble the pieces.");
 }
 
@@ -133,7 +129,8 @@ function startNewRun() {
   resetButton.disabled = false;
   buildBoard();
   populatePieceBank({ enableDrag: true, scramble: true });
-  setStatus("Mission live. Timer starts on your first correct placement.");
+  clearSelection();
+  setStatus("Mission live. Drag or tap-select pieces—timer starts on your first correct placement.");
 }
 
 function buildBoard() {
@@ -151,6 +148,7 @@ function buildBoard() {
       zone.addEventListener("dragenter", handleZoneDragEnter);
       zone.addEventListener("dragleave", handleZoneDragLeave);
       zone.addEventListener("drop", handleZoneDrop);
+      zone.addEventListener("click", handleZoneClick);
       fragment.appendChild(zone);
     }
   }
@@ -184,10 +182,11 @@ function populatePieceBank({ enableDrag, scramble = false }) {
 
     piece.addEventListener("dragstart", handleDragStart);
     piece.addEventListener("dragend", handleDragEnd);
+    piece.addEventListener("click", () => handlePieceClick(piece));
     piece.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        piece.focus();
+        handlePieceClick(piece);
       }
     });
 
@@ -247,59 +246,178 @@ function handleZoneDrop(event) {
   if (!(zone instanceof HTMLElement)) return;
   zone.classList.remove("is-hovered");
 
-  const pieceId = event.dataTransfer.getData("text/plain") || activePieceId;
+  const pieceId =
+    event.dataTransfer.getData("text/plain") || activePieceId || selectedPieceId;
   if (!pieceId) return;
   const piece = document.querySelector(`[data-piece-id="${pieceId}"]`);
   if (!(piece instanceof HTMLElement)) return;
+  placePieceInZone(piece, zone);
+}
 
-  const targetRow = zone.dataset.row;
-  const targetCol = zone.dataset.col;
-  const expectedRow = piece.dataset.row;
-  const expectedCol = piece.dataset.col;
+function handleZoneClick(event) {
+  if (!gameActive || puzzleSolved) return;
+  const zone = event.currentTarget;
+  if (!(zone instanceof HTMLElement)) return;
 
-  if (zone.firstElementChild && zone.firstElementChild !== piece) {
-    const existingPiece = zone.firstElementChild;
-    if (existingPiece instanceof HTMLElement) {
-      pieceBank.appendChild(existingPiece);
-      existingPiece.removeAttribute("data-placed-row");
-      existingPiece.removeAttribute("data-placed-col");
+  if (selectedPieceId) {
+    const piece = document.querySelector(`[data-piece-id="${selectedPieceId}"]`);
+    if (piece instanceof HTMLElement) {
+      placePieceInZone(piece, zone);
     }
+    return;
   }
 
-  const originZone = piece.parentElement?.classList.contains("drop-zone")
-    ? piece.parentElement
-    : null;
+  const occupant = zone.querySelector(".puzzle-piece");
+  if (occupant instanceof HTMLElement) {
+    selectPiece(occupant);
+  }
+}
+
+function handlePieceClick(piece) {
+  if (!gameActive || puzzleSolved) return;
+  if (!(piece instanceof HTMLElement)) return;
+  selectPiece(piece);
+}
+
+function selectPiece(piece) {
+  if (!(piece instanceof HTMLElement)) return;
+  const pieceId = piece.dataset.pieceId ?? null;
+  if (!pieceId) return;
+
+  if (selectedPieceId === pieceId) {
+    clearSelection();
+    return;
+  }
+
+  clearSelection();
+  selectedPieceId = pieceId;
+  piece.classList.add("is-selected");
+  activePieceId = pieceId;
+}
+
+function clearSelection() {
+  if (selectedPieceId) {
+    const current = document.querySelector(`[data-piece-id="${selectedPieceId}"]`);
+    if (current instanceof HTMLElement) {
+      current.classList.remove("is-selected");
+    }
+  }
+  selectedPieceId = null;
+  activePieceId = null;
+}
+
+function placePieceInZone(piece, zone) {
+  if (!gameActive || puzzleSolved) return false;
+  if (!(piece instanceof HTMLElement) || !(zone instanceof HTMLElement)) return false;
+
+  const targetRow = zone.dataset.row ?? "";
+  const targetCol = zone.dataset.col ?? "";
+  const expectedRow = piece.dataset.row ?? "";
+  const expectedCol = piece.dataset.col ?? "";
+
+  const previousParent = piece.parentElement;
+  const occupiesSameZone = previousParent === zone && zone.firstElementChild === piece;
+
+  if (occupiesSameZone) {
+    zone.classList.toggle("is-correct", targetRow === expectedRow && targetCol === expectedCol);
+    clearSelection();
+    return false;
+  }
+
+  const occupyingPiece = zone.firstElementChild;
+  if (occupyingPiece && occupyingPiece !== piece && occupyingPiece instanceof HTMLElement) {
+    movePieceToBank(occupyingPiece);
+  }
+
+  const movedFromDifferentParent = previousParent !== zone;
 
   zone.appendChild(piece);
   zone.classList.add("has-piece");
-  if (originZone && originZone !== zone) {
-    originZone.classList.remove("has-piece", "is-correct");
+  zone.classList.toggle("is-correct", targetRow === expectedRow && targetCol === expectedCol);
+
+  if (
+    previousParent instanceof HTMLElement &&
+    previousParent.classList.contains("drop-zone") &&
+    previousParent !== zone
+  ) {
+    previousParent.classList.remove("has-piece", "is-correct");
   }
 
-  piece.dataset.placedRow = targetRow ?? "";
-  piece.dataset.placedCol = targetCol ?? "";
+  piece.dataset.placedRow = targetRow;
+  piece.dataset.placedCol = targetCol;
+  piece.classList.remove("is-selected");
 
   if (!isTimerRunning) {
     startTimer();
     setStatus("Timer running. Assemble the Ronverse intel!");
   }
 
-  const isCorrect =
-    typeof targetRow !== "undefined" &&
-    typeof targetCol !== "undefined" &&
-    targetRow === expectedRow &&
-    targetCol === expectedCol;
-
-  if (isCorrect) {
-    zone.classList.add("is-correct");
-  } else {
-    zone.classList.remove("is-correct");
+  if (movedFromDifferentParent) {
+    movesCount += 1;
+    updateMovesDisplay();
   }
 
-  movesCount += 1;
-  updateMovesDisplay();
   updateBankState();
   checkForCompletion();
+  clearSelection();
+  return true;
+}
+
+function movePieceToBank(piece, { preserveSelection = false } = {}) {
+  if (!(piece instanceof HTMLElement)) return;
+  const pieceId = piece.dataset.pieceId ?? null;
+  const originZone = piece.parentElement?.classList?.contains("drop-zone")
+    ? piece.parentElement
+    : null;
+
+  pieceBank.appendChild(piece);
+  piece.removeAttribute("data-placed-row");
+  piece.removeAttribute("data-placed-col");
+
+  if (originZone instanceof HTMLElement) {
+    originZone.classList.remove("has-piece", "is-correct", "is-hovered");
+  }
+
+  if (preserveSelection && pieceId) {
+    clearSelection();
+    selectedPieceId = pieceId;
+    activePieceId = pieceId;
+    piece.classList.add("is-selected");
+  } else {
+    if (pieceId && selectedPieceId === pieceId) {
+      selectedPieceId = null;
+    }
+    if (pieceId && activePieceId === pieceId) {
+      activePieceId = null;
+    }
+    piece.classList.remove("is-selected");
+  }
+
+  updateBankState();
+}
+
+function handlePieceBankClick(event) {
+  if (!gameActive || puzzleSolved) return;
+  if (!selectedPieceId) return;
+
+  const target = event.target;
+  if (target instanceof HTMLElement && target.closest(".puzzle-piece")) {
+    return;
+  }
+
+  const piece = document.querySelector(`[data-piece-id="${selectedPieceId}"]`);
+  if (!(piece instanceof HTMLElement)) return;
+
+  const cameFromZone =
+    piece.parentElement instanceof HTMLElement &&
+    piece.parentElement.classList.contains("drop-zone");
+
+  movePieceToBank(piece, { preserveSelection: true });
+
+  if (cameFromZone) {
+    movesCount += 1;
+    updateMovesDisplay();
+  }
 }
 
 function updateBankState() {
