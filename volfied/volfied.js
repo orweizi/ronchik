@@ -15,6 +15,7 @@ const hud = {
 
 const playfieldEl = document.querySelector(".playfield");
 const statusBanner = document.querySelector(".status-banner");
+const victoryDrop = document.querySelector("[data-victory-message]");
 const restartButton = document.querySelector('[data-action="restart"]');
 const touchControls = document.querySelector("[data-touch-controls]");
 const joystickBase = document.querySelector("[data-joystick]");
@@ -352,6 +353,7 @@ function checkForLevelCompletion() {
   if (game.levelIndex >= LEVELS.length - 1) {
     game.gameOver = true;
     game.victory = true;
+    showVictoryMessage();
     showBanner("All intel recovered! Press R to replay.");
     return;
   }
@@ -517,6 +519,20 @@ function showBanner(message, duration = 2600) {
   }, duration);
 }
 
+function showVictoryMessage() {
+  if (!victoryDrop) return;
+  victoryDrop.setAttribute("aria-hidden", "false");
+  victoryDrop.classList.remove("is-active");
+  void victoryDrop.offsetWidth;
+  victoryDrop.classList.add("is-active");
+}
+
+function hideVictoryMessage() {
+  if (!victoryDrop) return;
+  victoryDrop.classList.remove("is-active");
+  victoryDrop.setAttribute("aria-hidden", "true");
+}
+
 function pulseBanner(message) {
   showBanner(message, 1800);
 }
@@ -544,6 +560,7 @@ function startLevel({ preserveLives = false } = {}) {
   game.gameOver = false;
   game.victory = false;
 
+  hideVictoryMessage();
   setBackgroundImage();
   updateCoverage();
   renderFog();

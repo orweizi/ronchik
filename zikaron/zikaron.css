@@ -341,7 +341,8 @@ button {
   background: rgba(10, 15, 32, 0.95);
   color: var(--text);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.75);
-  width: min(420px, 90vw);
+  width: min(420px, calc(100vw - 32px));
+  max-width: calc(100vw - 24px);
 }
 
 .leaderboard-dialog::backdrop {
@@ -424,6 +425,29 @@ button {
 .dialog__actions button[value="confirm"]:hover,
 .dialog__actions button[value="confirm"]:focus-visible {
   border-color: rgba(99, 245, 198, 0.8);
+}
+
+@media (max-width: 520px) {
+  .leaderboard-dialog {
+    border-radius: 18px;
+    width: min(360px, calc(100vw - 40px));
+    max-width: calc(100vw - 40px);
+  }
+
+  .dialog__form {
+    gap: 16px;
+    padding: clamp(18px, 5vw, 24px);
+  }
+
+  .dialog__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .dialog__actions button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 900px) {
